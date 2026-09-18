@@ -41,11 +41,20 @@ def run(controller, target):
 
     robot = create_scene()
 
-    # Desired joint angles
-    q_des = np.array(target)
+    # Desired position
+    desired_position = np.array(target)
+    desired_orientation = robot.robot_state.get_end_effector_orientation()
+
+    #Convert the desired end-effector pose into joint angles
+    q_des = np.array(
+        robot.robot_model.get_inverse_kinematics(
+            position=desired_position,
+            quaternion=desired_orientation,
+        )
+    )
 
     # Diagonal gain matrices for PD control
-    kp = np.array([100, 100, 100, 100, 100, 100])
+    kp = np.array([10, 10, 10, 10, 10, 10])
     kd = np.array([10, 10, 10, 10, 10, 10])
 
     duration = 5.0  # Simulation duration in seconds.
@@ -74,6 +83,14 @@ def run(controller, target):
             robot.sim.step()
             step += 1
     finally:
+        actual_position = robot.robot_state.get_end_effector_position()
+
+        print("Desired position:", desired_position)
+        print("Actual position:", actual_position)
+        print("Position error [m]:",
+             np.linalg.norm(desired_position - actual_position))
+        print("Joint error [rad]:",
+             q_des - robot.robot_state.get_joint_angles())
         robot.sim.close()  # Close the animation before showing the plots.
 
 
@@ -109,7 +126,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--controller", choices=["inverse_dynamics", "stiffness"],
                         default="inverse_dynamics")
-    parser.add_argument("--target", nargs=6, type=float,
-                        default=[1.77, -1.7, 2.4, -1.57, -1.57, -1.57])
+    parser.add_argument("--target", nargs=3, type=float,
+                        default=[0.5, 0.25, 0.5], help="Target end-effector position in world coordinates.")
     args = parser.parse_args()
     run(args.controller, args.target)
